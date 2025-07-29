@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CurrencyX | Currency Converter</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Header Section -->
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">CurrencyX</div>
+                <div class="header-right">
+                    <div id="connection-status" class="connection-status">
+                        <i class="fas fa-circle"></i>
+                        <span>Online</span>
+                    </div>
+                    <div class="theme-switcher">
+                        <button class="theme-btn active" id="light-mode" title="Light Mode">
+                            <i class="fas fa-sun"></i> Light
+                        </button>
+                        <button class="theme-btn" id="dark-mode" title="Dark Mode">
+                            <i class="fas fa-moon"></i> Dark
+                        </button>
+                        <button class="theme-btn" id="reading-mode" title="Reading Mode">
+                            <i class="fas fa-book-open"></i> Reading
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container">
+        <section class="hero">
+            <h1>Currency Converter</h1>
+            <p>Convert currencies with real-time exchange rates. Fast, accurate, and easy to use for all your currency conversion needs.</p>
+        </section>
+
+        <!-- Tab Navigation -->
+        <nav class="tab-nav">
+            <button class="tab-btn active" id="converter-tab">
+                <i class="fas fa-exchange-alt"></i> Converter
+            </button>
+            <button class="tab-btn" id="rates-tab">
+                <i class="fas fa-chart-line"></i> Rates
+            </button>
+            <button class="tab-btn" id="history-tab">
+                <i class="fas fa-history"></i> History
+            </button>
+        </nav>
+
+        <!-- Converter Tab -->
+        <section id="converter-section" class="tab-content">
+            <div class="card">
+                <form class="converter-form">
+                    <div class="input-group">
+                        <label for="amount"><i class="fas fa-money-bill-wave"></i> Amount</label>
+                        <input type="number" id="amount" placeholder="Enter amount" min="0" step="0.01">
+                    </div>
+                    
+                    <div class="currency-row">
+                        <div class="input-group currency-select">
+                            <label for="from-currency"><i class="fas fa-flag"></i> From Currency</label>
+                            <select id="from-currency">
+                                <option value="USD" data-flag="us">USD - US Dollar</option>
+                            </select>
+                        </div>
+                        
+                        <button type="button" class="swap-btn" id="swap-currencies" title="Swap currencies">
+                            <i class="fas fa-exchange-alt"></i>
+                        </button>
+                        
+                        <div class="input-group currency-select">
+                            <label for="to-currency"><i class="fas fa-flag"></i> To Currency</label>
+                            <select id="to-currency">
+                                <option value="EUR" data-flag="eu">EUR - Euro</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <button type="button" class="convert-btn" id="convert-btn">
+                        <i class="fas fa-calculator"></i> Convert Currency
+                    </button>
+                </form>
+                
+                <div id="loading" class="loading">Loading exchange rates</div>
+                <div id="result" class="result hidden"></div>
+            </div>
+            
+            <div class="card hidden" id="instructions">
+                <p>Enter an amount and select currencies to convert</p>
+            </div>
+        </section>
+
+        <!-- Rates Tab -->
+        <section id="rates-section" class="hidden tab-content">
+            <div class="card">
+                <h2 class="section-title">Current Exchange Rates (Base: <span id="base-currency-display">USD</span>)</h2>
+                <div id="rates-content"></div>
+            </div>
+        </section>
+
+        <!-- History Tab -->
+        <section id="history-section" class="hidden tab-content">
+            <div class="card">
+                <div class="history-header">
+                    <h2 class="section-title">Conversion History</h2>
+                    <button id="clear-history-btn" class="clear-history-btn" style="display: none;">
+                        <i class="fas fa-trash-alt"></i> Clear History
+                    </button>
+                </div>
+                <div id="history-content">
+                    <div class="empty-history">
+                        <i class="fas fa-history floating"></i>
+                        <p>No conversions yet</p>
+                        <p>Start converting to see history</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-links">
+                <a href="https://www.exchangerate-api.com/docs/overview"><i class="fas fa-code"></i> API Documentation</a>
+                <a href="#"><i class="fas fa-lock"></i> Privacy Policy</a>
+                <a href="#"><i class="fas fa-file-contract"></i> Terms of Service</a>
+                <a href="https://web.facebook.com/ag.wijekoon/"><i class="fas fa-envelope"></i> Contact</a>
+            </div>
+            <p class="copyright">© 2025 CurrencyX. Built for SAD Project by Nethmi Wijekoon. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Application -->
+    <script>
+        /**
+         * Currency Converter Application
+         * Main controller for the currency conversion functionality
+         */
+        class CurrencyConverterApp {
+            constructor() {
+                // API Configuration
+                this.API_KEY = 'd6e54e5f5d5fb2f040b3cd19';
+                this.API_URL = `https://v6.exchangerate-api.com/v6/${this.API_KEY}/latest/USD`;
+                this.CACHE_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
+                
+                // DOM Elements
+                this.amountInput = document.getElementById('amount');
+                this.fromCurrencySelect = document.getElementById('from-currency');
+                this.toCurrencySelect = document.getElementById('to-currency');
+                this.convertBtn = document.getElementById('convert-btn');
+                this.swapBtn = document.getElementById('swap-currencies');
+                this.resultDiv = document.getElementById('result');
+                this.loadingDiv = document.getElementById('loading');
+                this.instructionsDiv = document.getElementById('instructions');
+                this.connectionStatus = document.getElementById('connection-status');
+                
+                // Theme switcher elements
+                this.lightModeBtn = document.getElementById('light-mode');
+                this.darkModeBtn = document.getElementById('dark-mode');
+                this.readingModeBtn = document.getElementById('reading-mode');
+                
+                // Tab navigation elements
+                this.converterTab = document.getElementById('converter-tab');
+                this.ratesTab = document.getElementById('rates-tab');
+                this.historyTab = document.getElementById('history-tab');
+                this.converterSection = document.getElementById('converter-section');
+                this.ratesSection = document.getElementById('rates-section');
+                this.historySection = document.getElementById('history-section');
+                
+                // Rates section elements
+                this.baseCurrencyDisplay = document.getElementById('base-currency-display');
+                this.ratesContent = document.getElementById('rates-content');
+                
+                // History section elements
+                this.historyContent = document.getElementById('history-content');
+                this.clearHistoryBtn = document.getElementById('clear-history-btn');
+                
+                // State variables
+                this.exchangeRates = {};
+                this.currencies = [];
+                this.conversionHistory = JSON.parse(localStorage.getItem('conversionHistory')) || [];
+                this.isOnline = navigator.onLine;
+                
+                // Initialize the app
+                this.init();
+            }
+            
+            init() {
+                this.setupEventListeners();
+                this.updateConnectionStatus();
+                this.setTheme(localStorage.getItem('theme') || 'light');
+                this.fetchExchangeRates();
+                this.createFloatingCurrencies();
+            }
+            
+            setupEventListeners() {
+                // Connection status
+                window.addEventListener('online', () => this.updateConnectionStatus());
+                window.addEventListener('offline', () => this.updateConnectionStatus());
+                
+                // Converter
+                this.convertBtn.addEventListener('click', () => this.convertCurrency());
+                this.swapBtn.addEventListener('click', () => this.swapCurrencies());
+                
+                // Theme switcher
+                this.lightModeBtn.addEventListener('click', () => this.setTheme('light'));
+                this.darkModeBtn.addEventListener('click', () => this.setTheme('dark'));
+                this.readingModeBtn.addEventListener('click', () => this.setTheme('reading'));
+                
+                // Tab navigation
+                this.converterTab.addEventListener('click', () => this.showTab('converter'));
+                this.ratesTab.addEventListener('click', () => this.showTab('rates'));
+                this.historyTab.addEventListener('click', () => this.showTab('history'));
+                
+                // Clear history
+                this.clearHistoryBtn.addEventListener('click', () => this.clearHistory());
+                
+                // Sparkle effect on click
+                document.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || 
+                        e.target.parentElement.tagName === 'BUTTON' || e.target.parentElement.tagName === 'A') {
+                        this.createSparkle(e.clientX, e.clientY);
+                    }
+                });
+            }
+            
+            updateConnectionStatus() {
+                this.isOnline = navigator.onLine;
+                if (this.isOnline) {
+                    this.connectionStatus.className = 'connection-status online';
+                    this.connectionStatus.innerHTML = '<i class="fas fa-circle"></i><span>Online</span>';
+                } else {
+                    this.connectionStatus.className = 'connection-status offline';
+                    this.connectionStatus.innerHTML = '<i class="fas fa-circle"></i><span>Offline</span>';
+                    this.showOfflineMessage();
+                }
+            }
+            
+            showOfflineMessage() {
+                const existingMessage = document.querySelector('.offline-message');
+                if (existingMessage) existingMessage.remove();
+                
+                const message = document.createElement('div');
+                message.className = 'offline-message';
+                message.innerHTML = '<i class="fas fa-wifi"></i> You are currently offline. Using cached data.';
+                document.body.appendChild(message);
+                
+                setTimeout(() => {
+                    message.style.opacity = '0';
+                    setTimeout(() => message.remove(), 300);
+                }, 5000);
+            }
+            
+            createSparkle(x, y) {
+                const sparkle = document.createElement('div');
+                sparkle.className = 'sparkle';
+                sparkle.style.left = `${x - 2.5}px`;
+                sparkle.style.top = `${y - 2.5}px`;
+                document.body.appendChild(sparkle);
+                
+                setTimeout(() => sparkle.remove(), 1000);
+            }
+            
+            createFloatingCurrencies() {
+                const currencySymbols = ['$', '€', '£', '¥', '₹', '₽', '₩', '₪', '₺', '₴'];
+                const colors = ['#4361ee', '#3a0ca3', '#7209b7', '#f72585', '#4cc9f0', '#4895ef', '#560bad', '#b5179e', '#480ca8', '#3f37c9'];
+                
+                for (let i = 0; i < 15; i++) {
+                    setTimeout(() => {
+                        const currency = document.createElement('div');
+                        currency.className = 'floating-currency';
+                        currency.textContent = currencySymbols[Math.floor(Math.random() * currencySymbols.length)];
+                        currency.style.color = colors[Math.floor(Math.random() * colors.length)];
+                        currency.style.fontSize = `${Math.random() * 20 + 10}px`;
+                        currency.style.left = `${Math.random() * 100}%`;
+                        currency.style.animationDuration = `${Math.random() * 5 + 5}s`;
+                        currency.style.animationDelay = `${Math.random() * 5}s`;
+                        document.body.appendChild(currency);
+                        
+                        setTimeout(() => currency.remove(), 10000);
+                    }, i * 500);
+                }
+                
+                setInterval(() => this.createFloatingCurrencies(), 15000);
+            }
+            
+            setTheme(theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+                localStorage.setItem('theme', theme);
+                
+                // Update active button
+                this.lightModeBtn.classList.remove('active');
+                this.darkModeBtn.classList.remove('active');
+                this.readingModeBtn.classList.remove('active');
+                
+                if (theme === 'light') this.lightModeBtn.classList.add('active');
+                if (theme === 'dark') this.darkModeBtn.classList.add('active');
+                if (theme === 'reading') this.readingModeBtn.classList.add('active');
+                
+                // Add theme change animation
+                document.body.style.animation = 'none';
+                void document.body.offsetWidth; 
+                document.body.style.animation = 'fadeIn 0.5s ease-out';
+            }
+            
+            showTab(tab) {
+                // Update tabs
+                this.converterTab.classList.remove('active');
+                this.ratesTab.classList.remove('active');
+                this.historyTab.classList.remove('active');
+                
+                // Hide all sections
+                this.converterSection.classList.add('hidden');
+                this.ratesSection.classList.add('hidden');
+                this.historySection.classList.add('hidden');
+                
+                // Show selected tab
+                if (tab === 'converter') {
+                    this.converterTab.classList.add('active');
+                    this.converterSection.classList.remove('hidden');
+                } else if (tab === 'rates') {
+                    this.ratesTab.classList.add('active');
+                    this.ratesSection.classList.remove('hidden');
+                    this.updateRatesDisplay();
+                } else if (tab === 'history') {
+                    this.historyTab.classList.add('active');
+                    this.historySection.classList.remove('hidden');
+                    this.updateHistoryDisplay();
+                }
+                
+                // Add tab switch animation
+                const activeSection = tab === 'converter' ? this.converterSection : 
+                                     tab === 'rates' ? this.ratesSection : this.historySection;
+                activeSection.style.animation = 'none';
+                void activeSection.offsetWidth; 
+                activeSection.style.animation = 'fadeIn 0.5s ease-out';
+            }
+            
+            async fetchExchangeRates() {
+                this.loadingDiv.classList.remove('hidden');
+                this.instructionsDiv.classList.add('hidden');
+                this.resultDiv.classList.add('hidden');
+                
+                try {
+                    if (!this.isOnline) {
+                        throw new Error('Offline - using cached data');
+                    }
+                    
+                    const response = await fetch(this.API_URL);
+                    
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch exchange rates');
+                    }
+                    
+                    const data = await response.json();
+                    
+                    if (data.result === 'success') {
+                        this.exchangeRates = data.conversion_rates;
+                        this.currencies = Object.keys(this.exchangeRates);
+                        
+                        // Cache the data
+                        localStorage.setItem('cachedRates', JSON.stringify({
+                            rates: this.exchangeRates,
+                            timestamp: Date.now(),
+                            base: 'USD'
+                        }));
+                        
+                        this.populateCurrencyDropdowns();
+                        this.loadingDiv.classList.add('hidden');
+                        this.instructionsDiv.classList.remove('hidden');
+                        
+                        this.showSuccessMessage('Rates updated successfully!');
+                    } else {
+                        throw new Error(data['error-type']);
+                    }
+                } catch (error) {
+                    console.error('Error fetching exchange rates:', error);
+                    
+                    // Try to use cached rates
+                    const cachedData = JSON.parse(localStorage.getItem('cachedRates'));
+                    if (cachedData && Date.now() - cachedData.timestamp < this.CACHE_EXPIRY) {
+                        this.exchangeRates = cachedData.rates;
+                        this.currencies = Object.keys(this.exchangeRates);
+                        this.populateCurrencyDropdowns();
+                        this.showSuccessMessage('Using cached rates (last updated: ' + new Date(cachedData.timestamp).toLocaleString() + ')');
+                    } else {
+                        this.showError('Failed to load exchange rates. Please try again later.');
+                    }
+                    
+                    this.loadingDiv.classList.add('hidden');
+                    this.instructionsDiv.classList.remove('hidden');
+                }
+            }
+            
+            showSuccessMessage(message) {
+                const successDiv = document.createElement('div');
+                successDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
+                successDiv.style.position = 'fixed';
+                successDiv.style.bottom = '20px';
+                successDiv.style.right = '20px';
+                successDiv.style.backgroundColor = 'var(--success)';
+                successDiv.style.color = 'white';
+                successDiv.style.padding = '1rem 1.5rem';
+                successDiv.style.borderRadius = '8px';
+                successDiv.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                successDiv.style.animation = 'slideInRight 0.3s ease-out';
+                successDiv.style.zIndex = '1000';
+                document.body.appendChild(successDiv);
+                
+                setTimeout(() => {
+                    successDiv.style.animation = 'slideOutRight 0.3s ease-out';
+                    setTimeout(() => successDiv.remove(), 300);
+                }, 3000);
+            }
+            
+            populateCurrencyDropdowns() {
+                const commonCurrencies = [
+                    {code: 'USD', flag: 'us', name: 'US Dollar'},
+                    {code: 'EUR', flag: 'eu', name: 'Euro'},
+                    {code: 'GBP', flag: 'gb', name: 'British Pound'},
+                    {code: 'JPY', flag: 'jp', name: 'Japanese Yen'},
+                    {code: 'AUD', flag: 'au', name: 'Australian Dollar'},
+                    {code: 'CAD', flag: 'ca', name: 'Canadian Dollar'},
+                    {code: 'CHF', flag: 'ch', name: 'Swiss Franc'},
+                    {code: 'CNY', flag: 'cn', name: 'Chinese Yuan'},
+                    {code: 'INR', flag: 'in', name: 'Indian Rupee'}
+                ];
+                
+                const populateDropdown = (dropdown, selectedValue) => {
+                    dropdown.innerHTML = '';
+                    
+                    // Add common currencies first
+                    commonCurrencies.forEach(currency => {
+                        if (this.exchangeRates[currency.code]) {
+                            const option = document.createElement('option');
+                            option.value = currency.code;
+                            option.dataset.flag = currency.flag;
+                            option.innerHTML = `
+                                <img src="https://flagcdn.com/16x12/${currency.flag}.png" class="currency-flag" alt="${currency.code}">
+                                ${currency.code} - ${currency.name}
+                            `;
+                            if (currency.code === selectedValue) option.selected = true;
+                            dropdown.appendChild(option);
+                        }
+                    });
+                    
+                    // Add separator
+                    const separator = document.createElement('option');
+                    separator.disabled = true;
+                    separator.textContent = '──────────';
+                    dropdown.appendChild(separator);
+                    
+                    // Add all other currencies
+                    this.currencies
+                        .filter(code => !commonCurrencies.some(c => c.code === code))
+                        .sort()
+                        .forEach(code => {
+                            const option = document.createElement('option');
+                            option.value = code;
+                            const flagCode = this.getFlagForCurrency(code);
+                            option.dataset.flag = flagCode;
+                            option.innerHTML = `
+                                ${flagCode ? `<img src="https://flagcdn.com/16x12/${flagCode}.png" class="currency-flag" alt="${code}">` : ''}
+                                ${code} - ${this.getCurrencyName(code)}
+                            `;
+                            if (code === selectedValue) option.selected = true;
+                            dropdown.appendChild(option);
+                        });
+                };
+                
+                // Populate dropdowns
+                populateDropdown(this.fromCurrencySelect, 'USD');
+                populateDropdown(this.toCurrencySelect, 'EUR');
+                
+                // Update flag display when selection changes
+                [this.fromCurrencySelect, this.toCurrencySelect].forEach(select => {
+                    select.addEventListener('change', () => {
+                        const selectedOption = select.options[select.selectedIndex];
+                        const flagCode = selectedOption.dataset.flag;
+                        const label = select.id === 'from-currency' ? 
+                            document.querySelector('label[for="from-currency"]') : 
+                            document.querySelector('label[for="to-currency"]');
+                        
+                        if (flagCode) {
+                            label.innerHTML = `
+                                <img src="https://flagcdn.com/16x12/${flagCode}.png" class="currency-flag" alt="${select.value}">
+                                ${select.id === 'from-currency' ? 'From Currency' : 'To Currency'}
+                            `;
+                        }
+                    });
+                });
+            }
+            
+            getFlagForCurrency(currencyCode) {
+                const currencyToFlag = {
+                    'USD': 'us', 'EUR': 'eu', 'GBP': 'gb', 'JPY': 'jp', 'AUD': 'au', 'CAD': 'ca',
+                    'CHF': 'ch', 'CNY': 'cn', 'INR': 'in', 'BRL': 'br', 'MXN': 'mx', 'RUB': 'ru',
+                    'KRW': 'kr', 'TRY': 'tr', 'IDR': 'id', 'ZAR': 'za', 'SEK': 'se', 'NOK': 'no',
+                    'DKK': 'dk', 'PLN': 'pl', 'HKD': 'hk', 'SGD': 'sg', 'THB': 'th', 'MYR': 'my',
+                    'PHP': 'ph', 'VND': 'vn', 'AED': 'ae', 'SAR': 'sa', 'ILS': 'il', 'EGP': 'eg',
+                    'NGN': 'ng', 'KES': 'ke', 'ARS': 'ar', 'CLP': 'cl', 'COP': 'co', 'PEN': 'pe',
+                    'NZD': 'nz', 'HUF': 'hu', 'CZK': 'cz', 'RON': 'ro', 'BGN': 'bg', 'HRK': 'hr',
+                    'ISK': 'is', 'UAH': 'ua', 'PKR': 'pk', 'BDT': 'bd', 'LKR': 'lk', 'NPR': 'np',
+                    'KZT': 'kz', 'QAR': 'qa', 'OMR': 'om', 'JOD': 'jo', 'BHD': 'bh', 'KWD': 'kw',
+                    'MAD': 'ma', 'DZD': 'dz', 'TND': 'tn', 'LYD': 'ly', 'GHS': 'gh', 'ETB': 'et',
+                    'UGX': 'ug', 'TZS': 'tz', 'ZMW': 'zm', 'MWK': 'mw', 'MZN': 'mz', 'AOA': 'ao',
+                    'NAD': 'na', 'BWP': 'bw', 'MUR': 'mu', 'SCR': 'sc', 'DJF': 'dj', 'RWF': 'rw',
+                    'BIF': 'bi', 'CDF': 'cd', 'GMD': 'gm', 'GNF': 'gn', 'SLL': 'sl', 'LRD': 'lr',
+                    'SZL': 'sz', 'LSL': 'ls', 'ERN': 'er', 'SSP': 'ss', 'STN': 'st', 'CVE': 'cv',
+                    'KMF': 'km', 'XAF': 'cm', 'XOF': 'sn', 'XPF': 'pf'
+                };
+                
+                return currencyToFlag[currencyCode] || '';
+            }
+            
+            getCurrencyName(code) {
+                const currencyNames = {
+                    'USD': 'US Dollar', 'EUR': 'Euro', 'GBP': 'British Pound', 'JPY': 'Japanese Yen',
+                    'AUD': 'Australian Dollar', 'CAD': 'Canadian Dollar', 'CHF': 'Swiss Franc',
+                    'CNY': 'Chinese Yuan', 'INR': 'Indian Rupee', 'BRL': 'Brazilian Real',
+                    'MXN': 'Mexican Peso', 'RUB': 'Russian Ruble', 'KRW': 'South Korean Won',
+                    'TRY': 'Turkish Lira', 'IDR': 'Indonesian Rupiah', 'ZAR': 'South African Rand',
+                    'SEK': 'Swedish Krona', 'NOK': 'Norwegian Krone', 'DKK': 'Danish Krone',
+                    'PLN': 'Polish Złoty', 'HKD': 'Hong Kong Dollar', 'SGD': 'Singapore Dollar',
+                    'THB': 'Thai Baht', 'MYR': 'Malaysian Ringgit', 'PHP': 'Philippine Peso',
+                    'VND': 'Vietnamese Đồng', 'AED': 'UAE Dirham', 'SAR': 'Saudi Riyal',
+                    'ILS': 'Israeli Shekel', 'EGP': 'Egyptian Pound', 'NGN': 'Nigerian Naira',
+                    'KES': 'Kenyan Shilling', 'ARS': 'Argentine Peso', 'CLP': 'Chilean Peso',
+                    'COP': 'Colombian Peso', 'PEN': 'Peruvian Sol', 'NZD': 'New Zealand Dollar',
+                    'HUF': 'Hungarian Forint', 'CZK': 'Czech Koruna', 'RON': 'Romanian Leu',
+                    'BGN': 'Bulgarian Lev', 'HRK': 'Croatian Kuna', 'ISK': 'Icelandic Króna',
+                    'UAH': 'Ukrainian Hryvnia', 'PKR': 'Pakistani Rupee', 'BDT': 'Bangladeshi Taka',
+                    'LKR': 'Sri Lankan Rupee', 'NPR': 'Nepalese Rupee', 'KZT': 'Kazakhstani Tenge',
+                    'QAR': 'Qatari Riyal', 'OMR': 'Omani Rial', 'JOD': 'Jordanian Dinar',
+                    'BHD': 'Bahraini Dinar', 'KWD': 'Kuwaiti Dinar', 'MAD': 'Moroccan Dirham',
+                    'DZD': 'Algerian Dinar', 'TND': 'Tunisian Dinar', 'LYD': 'Libyan Dinar',
+                    'GHS': 'Ghanaian Cedi', 'ETB': 'Ethiopian Birr', 'UGX': 'Ugandan Shilling',
+                    'TZS': 'Tanzanian Shilling', 'ZMW': 'Zambian Kwacha', 'MWK': 'Malawian Kwacha',
+                    'MZN': 'Mozambican Metical', 'AOA': 'Angolan Kwanza', 'NAD': 'Namibian Dollar',
+                    'BWP': 'Botswana Pula', 'MUR': 'Mauritian Rupee', 'SCR': 'Seychellois Rupee',
+                    'DJF': 'Djiboutian Franc', 'RWF': 'Rwandan Franc', 'BIF': 'Burundian Franc',
+                    'CDF': 'Congolese Franc', 'GMD': 'Gambian Dalasi', 'GNF': 'Guinean Franc',
+                    'SLL': 'Sierra Leonean Leone', 'LRD': 'Liberian Dollar', 'SZL': 'Swazi Lilangeni',
+                    'LSL': 'Lesotho Loti', 'ERN': 'Eritrean Nakfa', 'SSP': 'South Sudanese Pound',
+                    'STN': 'São Tomé and Príncipe Dobra', 'CVE': 'Cape Verdean Escudo',
+                    'KMF': 'Comorian Franc', 'XAF': 'Central African CFA Franc',
+                    'XOF': 'West African CFA Franc', 'XPF': 'CFP Franc'
+                };
+                
+                return currencyNames[code] || code;
+            }
+            
+            convertCurrency() {
+                const amount = parseFloat(this.amountInput.value);
+                const fromCurrency = this.fromCurrencySelect.value;
+                const toCurrency = this.toCurrencySelect.value;
+                
+                if (isNaN(amount)) {
+                    this.showError('Please enter a valid amount');
+                    return;
+                }
+                
+                if (amount <= 0) {
+                    this.showError('Amount must be greater than zero');
+                    return;
+                }
+                
+                if (!this.exchangeRates[fromCurrency] || !this.exchangeRates[toCurrency]) {
+                    this.showError('Please select valid currencies');
+                    return;
+                }
+                
+                // Calculate conversion
+                const rate = this.exchangeRates[toCurrency] / this.exchangeRates[fromCurrency];
+                const result = amount * rate;
+                
+                // Display result
+                this.resultDiv.innerHTML = `
+                    <div style="font-size: 1.5rem; margin-bottom: 0.5rem;">${amount.toFixed(2)} ${fromCurrency} = <strong>${result.toFixed(2)} ${toCurrency}</strong></div>
+                    <div style="font-size: 0.9rem; color: var(--secondary-text);">1 ${fromCurrency} = ${rate.toFixed(6)} ${toCurrency}</div>
+                `;
+                this.resultDiv.classList.remove('hidden');
+                
+                // Add currency symbols animation
+                for (let i = 0; i < 5; i++) {
+                    setTimeout(() => {
+                        this.createSparkle(
+                            this.resultDiv.getBoundingClientRect().left + Math.random() * this.resultDiv.offsetWidth,
+                            this.resultDiv.getBoundingClientRect().top + Math.random() * this.resultDiv.offsetHeight
+                        );
+                    }, i * 200);
+                }
+                
+                // Add to history
+                this.addToHistory({
+                    date: new Date().toLocaleString(),
+                    from: fromCurrency,
+                    to: toCurrency,
+                    amount: amount,
+                    result: result,
+                    rate: rate
+                });
+            }
+            
+            showError(message) {
+                this.resultDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+                this.resultDiv.style.color = 'var(--error)';
+                this.resultDiv.style.backgroundColor = 'rgba(230, 57, 70, 0.1)';
+                this.resultDiv.style.borderColor = 'rgba(230, 57, 70, 0.3)';
+                this.resultDiv.classList.remove('hidden');
+                this.resultDiv.classList.add('bounce');
+                
+                setTimeout(() => {
+                    this.resultDiv.style.color = '';
+                    this.resultDiv.style.backgroundColor = '';
+                    this.resultDiv.style.borderColor = '';
+                    this.resultDiv.classList.remove('bounce');
+                }, 3000);
+            }
+            
+            swapCurrencies() {
+                const temp = this.fromCurrencySelect.value;
+                this.fromCurrencySelect.value = this.toCurrencySelect.value;
+                this.toCurrencySelect.value = temp;
+                
+                // Update flag display
+                const fromFlag = this.fromCurrencySelect.options[this.fromCurrencySelect.selectedIndex].dataset.flag;
+                const toFlag = this.toCurrencySelect.options[this.toCurrencySelect.selectedIndex].dataset.flag;
+                
+                document.querySelector('label[for="from-currency"]').innerHTML = `
+                    <img src="https://flagcdn.com/16x12/${fromFlag}.png" class="currency-flag" alt="${this.fromCurrencySelect.value}">
+                    From Currency
+                `;
+                
+                document.querySelector('label[for="to-currency"]').innerHTML = `
+                    <img src="https://flagcdn.com/16x12/${toFlag}.png" class="currency-flag" alt="${this.toCurrencySelect.value}">
+                    To Currency
+                `;
+                
+                // Add animation effect
+                this.swapBtn.style.transform = 'rotate(180deg) scale(1.2)';
+                setTimeout(() => {
+                    this.swapBtn.style.transform = '';
+                }, 300);
+                
+                // Add sparkle effect
+                this.createSparkle(
+                    this.swapBtn.getBoundingClientRect().left + this.swapBtn.offsetWidth / 2,
+                    this.swapBtn.getBoundingClientRect().top + this.swapBtn.offsetHeight / 2
+                );
+            }
+            
+            addToHistory(conversion) {
+                this.conversionHistory.unshift(conversion);
+                if (this.conversionHistory.length > 10) {
+                    this.conversionHistory = this.conversionHistory.slice(0, 10);
+                }
+                
+                localStorage.setItem('conversionHistory', JSON.stringify(this.conversionHistory));
+                
+                // Update history display if visible
+                if (!this.historySection.classList.contains('hidden')) {
+                    this.updateHistoryDisplay();
+                }
+            }
+            
+            updateRatesDisplay() {
+                if (this.currencies.length === 0) {
+                    this.ratesContent.innerHTML = '<p class="pulse">Loading exchange rates...</p>';
+                    return;
+                }
+                
+                let html = '<div style="overflow-x: auto;"><table>';
+                html += '<thead><tr><th>Currency</th>';
+                html += '<th>Code</th>';
+                html += '<th style="text-align: right;">Rate</th></tr></thead>';
+                html += '<tbody>';
+                
+                this.currencies.forEach(code => {
+                    if (code === 'USD') return;
+                    
+                    const flagCode = this.getFlagForCurrency(code);
+                    
+                    html += `<tr>
+                        <td>
+                            ${flagCode ? `<img src="https://flagcdn.com/16x12/${flagCode}.png" class="currency-flag" alt="${code}">` : ''}
+                            ${this.getCurrencyName(code)}
+                        </td>
+                        <td>${code}</td>
+                        <td style="text-align: right;">${this.exchangeRates[code].toFixed(6)}</td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table></div>';
+                this.ratesContent.innerHTML = html;
+                
+                // Add animation to table rows
+                const rows = this.ratesContent.querySelectorAll('tr');
+                rows.forEach((row, index) => {
+                    row.style.animationDelay = `${index * 0.05}s`;
+                    row.classList.add('fadeIn');
+                });
+            }
+            
+            updateHistoryDisplay() {
+                if (this.conversionHistory.length === 0) {
+                    this.historyContent.innerHTML = `
+                        <div style="text-align: center; padding: 2rem;">
+                            <i class="fas fa-history floating" style="font-size: 2rem; color: var(--secondary-text); margin-bottom: 1rem;"></i>
+                            <p>No conversions yet</p>
+                            <p>Start converting to see history</p>
+                        </div>
+                    `;
+                    this.clearHistoryBtn.style.display = 'none';
+                    return;
+                }
+
+                this.clearHistoryBtn.style.display = 'block';
+                
+                let html = '<div style="overflow-x: auto;"><table>';
+                html += '<thead><tr>';
+                html += '<th>Date</th>';
+                html += '<th>From</th>';
+                html += '<th>To</th>';
+                html += '<th style="text-align: right;">Amount</th>';
+                html += '<th style="text-align: right;">Result</th>';
+                html += '</tr></thead><tbody>';
+                
+                this.conversionHistory.forEach(item => {
+                    const fromFlag = this.getFlagForCurrency(item.from);
+                    const toFlag = this.getFlagForCurrency(item.to);
+                    
+                    html += `<tr>
+                        <td>${item.date}</td>
+                        <td>
+                            ${fromFlag ? `<img src="https://flagcdn.com/16x12/${fromFlag}.png" class="currency-flag" alt="${item.from}">` : ''}
+                            ${item.from}
+                        </td>
+                        <td>
+                            ${toFlag ? `<img src="https://flagcdn.com/16x12/${toFlag}.png" class="currency-flag" alt="${item.to}">` : ''}
+                            ${item.to}
+                        </td>
+                        <td style="text-align: right;">${item.amount.toFixed(2)}</td>
+                        <td style="text-align: right;"><strong>${item.result.toFixed(2)} ${item.to}</strong></td>
+                    </tr>`;
+                });
+                
+                html += '</tbody></table></div>';
+                this.historyContent.innerHTML = html;
+                
+                // Add animation to history rows
+                const historyRows = this.historyContent.querySelectorAll('tr');
+                historyRows.forEach((row, index) => {
+                    row.style.animationDelay = `${index * 0.05}s`;
+                    row.classList.add('fadeIn');
+                });
+            }
+            
+            clearHistory() {
+                if (confirm('Are you sure you want to clear your conversion history?')) {
+                    this.conversionHistory = [];
+                    localStorage.removeItem('conversionHistory');
+                    this.updateHistoryDisplay();
+                    
+                    // Add confirmation animation
+                    const confirmation = document.createElement('div');
+                    confirmation.innerHTML = '<i class="fas fa-check-circle"></i> History cleared';
+                    confirmation.style.position = 'fixed';
+                    confirmation.style.bottom = '20px';
+                    confirmation.style.right = '20px';
+                    confirmation.style.backgroundColor = 'var(--success)';
+                    confirmation.style.color = 'white';
+                    confirmation.style.padding = '1rem 1.5rem';
+                    confirmation.style.borderRadius = '8px';
+                    confirmation.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                    confirmation.style.animation = 'slideInRight 0.3s ease-out';
+                    document.body.appendChild(confirmation);
+                    
+                    setTimeout(() => {
+                        confirmation.style.animation = 'slideOutRight 0.3s ease-out';
+                        setTimeout(() => confirmation.remove(), 300);
+                    }, 3000);
+                }
+            }
+        }
+
+        // Initialize the application when the DOM is fully loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            new CurrencyConverterApp();
+        });
+
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').then(registration => {
+                    console.log('ServiceWorker registration successful');
+                }).catch(err => {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
+
+   
+    <script>
+        //sw.js
+        const CACHE_NAME = 'currencyx-v1';
+        const urlsToCache = [
+            '/',
+            '/index.html',
+            'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css',
+            'https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap'
+        ];
+
+        self.addEventListener('install', event => {
+            event.waitUntil(
+                caches.open(CACHE_NAME)
+                    .then(cache => cache.addAll(urlsToCache))
+            );
+        });
+
+        self.addEventListener('fetch', event => {
+            event.respondWith(
+                caches.match(event.request)
+                    .then(response => {
+                        if (response) return response;
+                        
+                        return fetch(event.request)
+                            .then(response => {
+                                if (!response || response.status !== 200 || response.type !== 'basic') {
+                                    return response;
+                                }
+                                
+                                const responseToCache = response.clone();
+                                caches.open(CACHE_NAME)
+                                    .then(cache => cache.put(event.request, responseToCache));
+                                
+                                return response;
+                            })
+                            .catch(() => {
+                                if (event.request.url.includes('flagcdn.com')) {
+                                    return new Response(
+                                        'R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==',
+                                        { headers: {'Content-Type': 'image/gif'} }
+                                    );
+                                }
+                                return caches.match('/offline.html');
+                            });
+                    })
+            );
+        });
+
+        self.addEventListener('activate', event => {
+            const cacheWhitelist = [CACHE_NAME];
+            event.waitUntil(
+                caches.keys().then(cacheNames => {
+                    return Promise.all(
+                        cacheNames.map(cacheName => {
+                            if (cacheWhitelist.indexOf(cacheName) === -1) {
+                                return caches.delete(cacheName);
+                            }
+                        })
+                    );
+                })
+            );
+        });
+    </script>
+</body>
+</html>
